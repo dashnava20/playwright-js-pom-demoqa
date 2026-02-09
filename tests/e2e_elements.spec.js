@@ -1,71 +1,88 @@
 // tests/e2e_elements.spec.js
 import { test, expect } from '@playwright/test';
-import { Elements } from '../pages/Elements.js';
+import { Elements } from '../src/pages/Elements.js';
 import { removeFixedOverlays } from '../src/utils/helperUtilities.js';
+import testData from '../src/data/dataTestDemoQA.json' assert { type: 'json' };
 
 test.describe('Elements Page Tests', () => {
 
     test.beforeEach(async ({ page }) => {
         const elements = new Elements(page);
-        await page.goto('https://demoqa.com/elements');
+        await elements.goTo('https://demoqa.com/elements');
         await removeFixedOverlays(page);
     });
 
     test('Fill Text Box Form', async ({ page }) => {
         const elements = new Elements(page);
-        await elements.navigateToTextBox();
+        const { fullName, email, currentAddress, permanentAddress } = testData.textBoxData;
+        
+        // 1. Navegación dinámica y validación de URL
+        const expectedUrl = await elements.navigateTo('Text Box');
+        expect(page).toHaveURL(new RegExp(expectedUrl));
+
+        // 2. Llenado del formulario
         await elements.fillTextBoxForm(
-            'John Doe',
-            'john.doe@example.com',
-            '123 Main St, Anytown, USA',
-            '456 Elm St, Othertown, USA'
+            fullName,
+            email,
+            currentAddress,
+            permanentAddress
         );
         
-        // Assertions
+        // 3. Aserciones
         const outputName = await elements.page.locator('#name').textContent();
-        expect(outputName).toContain('John Doe');
+        expect(outputName).toContain(fullName);
 
-        // E2E confirmation message
-        console.log('Text Box form submitted successfully and verified.');
+        const outputEmail = await elements.page.locator('#email').textContent();
+        expect(outputEmail).toContain(email);
+
+        const outputCurrentAddress = await elements.page.locator('#currentAddress').last().textContent(); //Existen dos elementos con el mismo id, por lo que se utiliza .last() para seleccionar el correcto
+        expect(outputCurrentAddress).toContain(currentAddress);
+
+        const outputPermanentAddress = await elements.page.locator('#permanentAddress').last().textContent(); //Existen dos elementos con el mismo id, por lo que se utiliza .last() para seleccionar el correcto
+        expect(outputPermanentAddress).toContain(permanentAddress);
+
+        // 4. E2E Mensaje de Confirmación
+        console.log('✅ - Text Box form submitted successfully and verified.');
     });
     
     test('Check Box Interactions', async ({ page }) => {
         const elements = new Elements(page);
-        await elements.navigateToCheckBox();
+        
+        // 1. Navegación dinámica y validación de URL
+        const expectedUrl = await elements.navigateTo('CheckBox');
+        expect(page).toHaveURL(new RegExp(expectedUrl));
+
+        // 2. Interacciones con Check Boxes
         await elements.expandAllCheckboxes();
         await elements.selectDesktopCheckbox();
         await elements.selectReactCheckbox();
         await elements.selectDownloadsCheckbox();
         
-        // Assertions
+        // 3. Aserciones
         const resultsText = await elements.getResultsText();
         expect(resultsText).toContain('You have selected :desktopnotescommandsreactdownloadswordFileexcelFile');
 
-        // E2E confirmation message
-        console.log('Check Box interactions completed successfully.');
+        // 4. E2E Mensaje de Confirmación
+        console.log('✅ - Check Box interactions completed successfully.');
     });
 
-    // Temporary test
-    test.only('Temporary Test - To be removed later', async ({ page }) => {
-        await page.goto('https://demos.telerik.com/kendo-ui/grid/index');
-        const grid = page.locator('#grid');
-        const gridSearchBar = grid.getByRole('textbox', { name: 'Search...' })
+    test('Radio Button Interactions', async ({ page }) => {
+        const elements = new Elements(page);
         
-        await expect(grid).toBeVisible();
-        
-        const rows = grid.locator('tbody tr');
-        const rowCount = await rows.count();
-        console.log(`Original #rows: ${rowCount}`);
-        
-        await gridSearchBar.fill('Tofu');
-        await expect(rows).toHaveCount(3); // Considerando el separador de categorías como una fila más
+        // 1. Navegación dinámica y validación de URL
+        const expectedUrl = await elements.navigateTo('RadioBtn');
+        expect(page).toHaveURL(new RegExp(expectedUrl));
 
-        const filteredRowCount = await rows.count();
-        console.log(`Filtered #rows: ${filteredRowCount}`);
-        expect(rows).toHaveCount(3); // Considerando el separador de categorías como una fila más
-        await expect(rows.nth(1)).toContainText('Tofu');
-        
-        
+        // 2. Interacciones con Radio Buttons
+        await elements.selectRadioButton('Yes');
+        const yesResult = await elements.getRadioResult();
+        expect(yesResult).toContain('You have selected Yes');
+
+        await elements.selectRadioButton('Impressive');
+        const impressiveResult = await elements.getRadioResult();
+        expect(impressiveResult).toContain('You have selected Impressive');
+
+        // 3. E2E Mensaje de Confirmación
+        console.log('✅ - Radio Button interactions completed successfully.');
     });
-
 });
