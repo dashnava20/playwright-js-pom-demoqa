@@ -1,0 +1,10 @@
+{
+  "tableData": {
+    "firstName": "Daniel",
+    "lastName": "Nava",
+    "email": "d-nava.test@not-human.com",
+    "age": "30",
+    "salary": "5000",
+    "department": "QA"
+  }
+}

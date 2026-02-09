@@ -33,8 +33,40 @@ class Elements extends BasePage {
         this.reactCheckbox = page.locator('label[for="tree-node-react"] .rct-checkbox')
         this.downloadsCheckbox = page.locator('label[for="tree-node-downloads"] .rct-checkbox')
         this.resultsSection = page.locator('#result')
+
+        // Radio Button
+        // (No se requieren selectores específicos aquí, ya que se manejan dinámicamente en los métodos)
+
+        // Web Tables
+        // Locators principales
+        this.addButton = page.locator('#addNewRecordButton');
+        this.registrationModal = page.locator('.modal-content');
+        this.submitButton = page.locator('#submit');
+        
+        // Locators de la tabla
+        this.webTable = page.locator('.rt-table')
+        this.tableRows = page.locator('.rt-tr-group');
+        this.filledRows = this.tableRows.filter({ hasText: /[a-zA-Z0-9]/ }); // Filas que tienen texto (no están vacías)
+        this.editButton = (row) => row.locator('span[title="Edit"]');
+        this.deleteButton = (row) => row.locator('span[title="Delete"]');
+
+        // Locators del Formulario (Pop-up)
+        this.firstNameInput = page.locator('#firstName');
+        this.lastNameInput = page.locator('#lastName');
+        this.emailInput = page.locator('#userEmail');
+        this.ageInput = page.locator('#age');
+        this.salaryInput = page.locator('#salary');
+        this.departmentInput = page.locator('#department');
+
+        // Buttons
+        this.doubleClickButton = this.page.locator('#doubleClickBtn');
+        this.rightClickButton = this.page.locator('#rightClickBtn');
+        this.dynamicClickButton = this.page.getByRole('button', { name: 'Click Me', exact: true })
+        this.doubleClickMessage = this.page.locator('#doubleClickMessage');
+        this.rightClickMessage = this.page.locator('#rightClickMessage');
+        this.dynamicClickMessage = this.page.locator('#dynamicClickMessage');
     }
-    
+
     // Navegación Global
     /**
      * Navega dinámicamente y valida la URL automáticamente.
@@ -93,6 +125,50 @@ class Elements extends BasePage {
     async getRadioResult() {
         return await this.page.locator('p:has-text("You have selected")').textContent()
     }
-}
 
+    // Web Tables: Métodos
+    async getFilledRowCount() {
+        return await this.filledRows.count();
+    }
+
+    async openRegistrationForm() {
+        await this.addButton.click();
+    }
+
+    async fillRegistrationForm(data) {
+        await this.firstNameInput.fill(data.firstName);
+        await this.lastNameInput.fill(data.lastName);
+        await this.emailInput.fill(data.email);
+        await this.ageInput.fill(data.age);
+        await this.salaryInput.fill(data.salary);
+        await this.departmentInput.fill(data.department);
+        await this.submitButton.click();
+    }
+
+    async deleteRecordByEmail(email) {
+        // Buscamos la fila específica por email y clickeamos su botón delete
+        const row = this.tableRows.filter({ hasText: email });
+        await row.locator('span[title="Delete"]').click();
+    }
+
+    // Buttons: Métodos
+    async clickDoubleClickButton() {
+        await this.doubleClickButton.dblclick();
+    }
+    async clickRightClickButton() {
+        await this.rightClickButton.click( { button: 'right' } );
+    }
+    async clickDynamicClickButton() {
+        await this.dynamicClickButton.click();
+    }
+    async getDoubleClickMessage() {
+        return await this.doubleClickMessage.textContent();
+    }
+    async getRightClickMessage() {
+        return await this.rightClickMessage.textContent();
+    }
+    async getDynamicClickMessage() {
+        return await this.dynamicClickMessage.textContent();
+    }
+}
 module.exports = { Elements };
