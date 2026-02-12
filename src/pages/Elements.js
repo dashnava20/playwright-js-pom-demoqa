@@ -98,6 +98,17 @@ class Elements extends BasePage {
         this.brokenImage = page.locator('.body-height img[src="/images/Toolsqa_1.jpg"]');
         this.validLink = page.getByRole('link', { name: 'Click Here for Valid Link' });
         this.brokenLink = page.getByRole('link', { name: 'Click Here for Broken Link' });
+
+        // Upload & Download
+        this.uploadInput = page.locator('#uploadFile')
+        this.uploadedFilePath = page.locator('#uploadedFilePath')
+        this.downloadButton = page.locator('#downloadButton')
+
+        // Dynamic Properties
+        this.randomIDText = page.getByText('This text has random Id', { exact: true })
+        this.enableAfterButton = page.locator('#enableAfter')
+        this.colorChangeButton = page.locator('#colorChange')
+        this.visibleAfterButton = page.locator('#visibleAfter')
     }
 
     // Navegación Global
@@ -260,5 +271,60 @@ class Elements extends BasePage {
         return !response.ok(); // ok() devuelve true si el status está entre 200-299
     }
 
+    // Upload & Download: Métodos
+    async uploadFile(filePath) {
+        await this.uploadInput.setInputFiles(filePath);
+    }
+    async getUploadedFilePath() {
+        return await this.uploadedFilePath.textContent();
+    }
+    async downloadFile() {
+        // Interceptamos la descarga para obtener el path del archivo descargado
+        const [download] = await Promise.all([
+            this.page.waitForEvent('download'),
+            this.downloadButton.click()
+        ]);
+        const downloadPath = await download.path();
+        return downloadPath; // Devolvemos el path para validación
+    }
+
+    // Dynamic Properties: Métodos
+    async isVisibleRandomIDText() {
+        if(await this.randomIDText.isVisible()) {
+            const textContent = await this.randomIDText.getAttribute('id');
+            return textContent;
+        }
+        return null;
+    }
+
+    async isEnableAfterButtonEnabled() {
+        // Esperamos a que el botón se habilite (después de 5 segundos)
+        await this.page.waitForFunction(
+            (selector) => {
+                const btn = document.querySelector(selector);
+                return btn && !btn.disabled;
+            },
+            '#enableAfter',
+            { timeout: 7000 } // Un poco más del tiempo esperado para evitar falsos negativos
+        );
+        return await this.enableAfterButton.isEnabled();
+    }
+
+    /**
+     * Obtiene el string completo de clases del botón.
+     * @returns {Promise<string>}
+     */
+    async getButtonClasses() {
+        return await this.colorChangeButton.getAttribute('class');
+    }
+
+    async isVisibleAfterButtonVisible() {
+        try {
+            await this.visibleAfterButton.waitFor({ state: 'visible', timeout: 7000 });
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
 }
 module.exports = { Elements };

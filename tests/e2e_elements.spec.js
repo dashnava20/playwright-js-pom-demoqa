@@ -155,7 +155,7 @@ test.describe('Elements Page Tests', () => {
         const expectedUrl = await elements.navigateTo('Links');
         expect(page).toHaveURL(new RegExp(expectedUrl));
 
-        // Filtramos solo los de navegación (Home, DynamicHome)
+        // 2. Filtramos solo los de navegación (Home, DynamicHome)
         const navLinks = Object.keys(elements.LINK_ITEMS).filter(key => 
             elements.LINK_ITEMS[key].type === 'navigation'
         );
@@ -178,9 +178,9 @@ test.describe('Elements Page Tests', () => {
             }
         }
 
+        // 3. E2E Mensaje de Confirmación
         console.log(`✅ - Final Report (NAV): ${functional}/${navLinks.length} links functional.`);
         
-        // Senior Tip: Si algo falló, forzamos que el test falle al final para ser honestos con el reporte
         expect(functional, 'Not all navigation links passed').toBe(navLinks.length);
         console.log(`${LOG_PREFIX}Links: New tab navigation verified (${functional}/${navLinks.length}).`);
     });
@@ -192,6 +192,7 @@ test.describe('Elements Page Tests', () => {
         const expectedUrl = await elements.navigateTo('Links');
         expect(page).toHaveURL(new RegExp(expectedUrl));
 
+        // 2. Filtramos solo los de api (status codes)
         const apiLinks = Object.keys(elements.LINK_ITEMS).filter(key => 
             elements.LINK_ITEMS[key].type === 'api'
         );
@@ -220,9 +221,10 @@ test.describe('Elements Page Tests', () => {
             }
         }
 
+        // 3. E2E Mensaje de Confirmación
         console.log(`✅ - Final Report (API): ${functional}/${apiLinks.length} links functional.`);
 
-        // Si quieres que el test falle si hubo errores en el bucle:
+        // Control en caso de errores en el bucle:
         if (failedLinks.length > 0) {
             throw new Error(`❌ - The following API links failed: ${failedLinks.join(', ')}`);
         }
@@ -252,7 +254,71 @@ test.describe('Elements Page Tests', () => {
         expect(isBrokenLinkBroken, 'Broken link should return an error status').toBe(true);
         console.log('✅ - Link status checks passed.');
 
-        // Tu cierre estandarizado
+        // 4. E2E Mensaje de Confirmación
         console.log(`${LOG_PREFIX}Broken Links: Image integrity and URL status checked.`);
+    });
+
+    test('Verify upload and download functionality', async ({ page }) => {
+        const elements = new Elements(page);
+        
+        // 1. Navegación dinámica y validación de URL
+        const expectedUrl = await elements.navigateTo('UploadDownload');
+        expect(page).toHaveURL(new RegExp(expectedUrl));
+
+        // 2. Validar Descarga
+        const downloadedFilePath = await elements.downloadFile();
+        expect(downloadedFilePath).toBeTruthy();
+        console.log(`✅ - File downloaded successfully: ${downloadedFilePath}`);
+
+        // 3. Validar Subida
+        const fileToUpload = 'src/data/test_upload_file.txt'; // File located in src/data directory
+        await elements.uploadFile(fileToUpload);
+        const uploadResult = await elements.getUploadedFilePath();
+        expect(uploadResult).toContain('test_upload_file.txt');
+        console.log(`✅ - File uploaded successfully: ${fileToUpload}`);
+
+        // 4. E2E Mensaje de Confirmación
+        console.log(`${LOG_PREFIX}Upload & Download: File upload and download verified.`);
+    });
+
+    test('Verify dynamic properties', async ({ page }) => {
+        const elements = new Elements(page);
+
+        // 1. Navegación dinámica y validación de URL
+        const expectedUrl = await elements.navigateTo('DynamicProperties');
+        expect(page).toHaveURL(new RegExp(expectedUrl));
+
+        // 2. Verificar que el texto con ID aleatorio sea visible
+        const isRandomIDVisible = await elements.isVisibleRandomIDText();
+        expect(isRandomIDVisible.length).toBeGreaterThan(0);
+        console.log(`✅ - Random ID "${isRandomIDVisible}" text is visible.`);
+
+        // 3. Verificar que el botón se habilite después de un tiempo
+        const isEnableAfter = await elements.isEnableAfterButtonEnabled();
+        expect(isEnableAfter).toBe(true);
+        console.log('✅ - Button is enabled after 5 seconds.');
+
+        // 4. Verificar que el botón reciba la clase 'text-danger'
+        console.log('⏳ - Waiting for button to change color...');
+
+        await expect.poll(async () => {
+            return await elements.getButtonClasses();
+        }, {
+            message: 'Button did not receive text-danger class within timeout',
+            timeout: 7000,
+        }).toContain('text-danger');
+
+        console.log('✅ - Button changed color.');
+
+        // 4. Verificar que el botón "Visible After 5 Seconds" aparezca
+        console.log('⏳ - Waiting for the hidden button to appear...');
+
+        const isVisible = await elements.isVisibleAfterButtonVisible();
+        expect(isVisible).toBe(true);
+
+        console.log(`✅ - Button "Visible After 5 Seconds" is now: ${isVisible ? 'Visible' : 'Hidden'}`);
+
+        // 5. E2E Mensaje de Confirmación
+        console.log(`${LOG_PREFIX}Dynamic Properties: Visibility and style changes verified.`);
     });
 });
