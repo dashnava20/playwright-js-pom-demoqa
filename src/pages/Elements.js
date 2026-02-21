@@ -3,7 +3,7 @@ import { BasePage } from './BasePage.js';
 
 class Elements extends BasePage {
     constructor(page) {
-        super(page) // Llamada al constructor de BasePage
+        super(page, 'Elements') // Llamada al constructor de BasePage y asignación nombre
         this.page = page
         
         // Mapa de navegación
@@ -27,12 +27,14 @@ class Elements extends BasePage {
         this.submitButton = page.locator('#submit')
 
         // Check Box
-        this.expandAllButton = page.getByRole('button', { name: 'Expand all' })
-        this.collapseAllButton = page.getByRole('button', { name: 'Collapse all' })
-        this.desktopCheckbox = page.locator('label[for="tree-node-desktop"] .rct-checkbox')
-        this.reactCheckbox = page.locator('label[for="tree-node-react"] .rct-checkbox')
-        this.downloadsCheckbox = page.locator('label[for="tree-node-downloads"] .rct-checkbox')
+        this.expandAllButton = page.locator('.rc-tree-switcher')
+        this.expandInternalButton = page.locator('.rc-tree-switcher.rc-tree-switcher_close')
         this.resultsSection = page.locator('#result')
+        this.CHECKBOX_CONFIG = {
+            'Desktop': { label: 'Desktop', expected: 'desktopnotescommands' },
+            'React': { label: 'React', expected: 'react' },
+            'Downloads': { label: 'Downloads', expected: 'downloadswordFileexcelFile' },
+        }
 
         // Radio Button
         // (No se requieren selectores específicos aquí, ya que se manejan dinámicamente en los métodos)
@@ -44,11 +46,11 @@ class Elements extends BasePage {
         this.submitButton = page.locator('#submit')
         
         // Locators de la tabla
-        this.webTable = page.locator('.rt-table')
-        this.tableRows = page.locator('.rt-tr-group')
-        this.filledRows = this.tableRows.filter({ hasText: /[a-zA-Z0-9]/ }) // Filas que tienen texto (no están vacías)
-        this.editButton = (row) => row.locator('span[title="Edit"]')
-        this.deleteButton = (row) => row.locator('span[title="Delete"]')
+        this.tableBody = page.locator('tbody');
+        this.allRows = this.tableBody.locator('tr');
+        this.filledRows = this.allRows.filter({ has: page.locator('span[title="Edit"]') });
+        this.editButton = (row) => row.locator('span[title="Edit"]');
+        this.deleteButton = (row) => row.locator('span[title="Delete"]');
 
         // Locators del Formulario (Pop-up)
         this.firstNameInput = page.locator('#firstName')
@@ -111,27 +113,7 @@ class Elements extends BasePage {
         this.visibleAfterButton = page.locator('#visibleAfter')
     }
 
-    // Navegación Global
-    /**
-     * Navega dinámicamente y valida la URL automáticamente.
-     * @param {string} pageName - La clave definida en MENU_ITEMS (ej: 'TextBox')
-     */
-    async navigateTo(pageName) {
-        const menuItem = this.MENU_ITEMS[pageName];
-        //Manejo de erores
-        if(!menuItem) {
-            throw new Error(`❌ - Page ${pageName} not found.`);
-        }
-        console.log(`✅ - Navigating to "${menuItem.label}" page.`);
-
-        await this.page.getByRole('listitem')
-            .filter({ hasText: new RegExp(`^${menuItem.label}$`) })
-            .click();
-            
-        console.log(`✅ - Navigation to "${menuItem.label}" successful. Current URL: ${this.page.url()}`);
-        return menuItem.url; // Devuelve la URL esperada para validación
-    }
-    
+    // Métodos comunes a todas las páginas (si es necesario, se pueden agregar aquí)    
     // Text Box: Métodos
     async fillTextBoxForm(name, email, currentAddr, permanentAddr) {
         await this.fullNameInput.fill(name)
@@ -143,19 +125,33 @@ class Elements extends BasePage {
 
     // Check Box: Métodos
     async expandAllCheckboxes() {
-        await this.expandAllButton.click()
+        this.log('act', `Expanding tree nodes...`);
+        const firstClosedButton = this.page.locator('.rc-tree-switcher_close').first();
+
+        while (await firstClosedButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+            await firstClosedButton.scrollIntoViewIfNeeded();
+            await firstClosedButton.click();
+            await this.page.waitForTimeout(300);
+        }
     }
     async collapseAllCheckboxes() {
         await this.collapseAllButton.click()
     }
-    async selectDesktopCheckbox() {
-        await this.desktopCheckbox.click()
-    }
-    async selectReactCheckbox() {
-        await this.reactCheckbox.click()
-    }
-    async selectDownloadsCheckbox() {
-        await this.downloadsCheckbox.click()
+
+    async selectCheckbox(optionName) {
+        const config = this.CHECKBOX_CONFIG[optionName];
+        if (!config) throw new Error(`❌ - Option not configured: "${optionName}"`);
+
+        this.log('act', `Checkbox selected: ${config.label}`);
+
+        // Buscamos el span con el texto exacto dentro del árbol de checkboxes
+        const checkbox = this.page.getByRole('checkbox', { name: `Select ${config.label}` });
+
+        await checkbox.scrollIntoViewIfNeeded();
+        await checkbox.click();
+
+        // Retornamos el string esperado para que el test lo use en su aserción
+        return config.expected;
     }
     async getResultsText() {
         return await this.resultsSection.textContent()
@@ -163,8 +159,9 @@ class Elements extends BasePage {
 
     // Radio Button: Métodos
     async selectRadioButton(option) {
-        const radioOption = this.page.locator('.custom-control-label').filter({ hasText: new RegExp(`^${option}$`) })
+        const radioOption = this.page.locator('.form-check-label').filter({ hasText: new RegExp(`^${option}$`) })
         await radioOption.click()
+        this.log('pass', `Radio button selected: ${option}`);
     }
     async getRadioResult() {
         return await this.page.locator('p:has-text("You have selected")').textContent()
@@ -189,12 +186,26 @@ class Elements extends BasePage {
         await this.submitButton.click()
     }
 
-    async deleteRecordByEmail(email) {
-        // Buscamos la fila específica por email y clickeamos su botón delete
-        const row = this.tableRows.filter({ hasText: email })
-        await row.locator('span[title="Delete"]').click()
+    async editRecordByEmail(email, newFirstName) {
+        const row = this.filledRows.filter({ hasText: email })
+        await row.locator('span[title="Edit"]').click()
+        await this.firstNameInput.fill(newFirstName)
+        await this.submitButton.click()
+
+        return newFirstName; // Devolvemos el nuevo nombre para validación
     }
 
+    async deleteRecordByEmail(email) {
+        this.log('act', `Deleting record: ${email.substring(0, 6)}...`);
+
+        const row = this.allRows.filter({ has: this.page.locator('td', { hasText: email }) });
+        const deleteButton = row.locator('span[id^="delete-record"]');
+
+        await deleteButton.dispatchEvent('click');
+        await this.page.locator(`text=${email}`).waitFor({ state: 'hidden', timeout: 3000 });
+
+        this.log('pass', `Record no longer visible: ${email.substring(0, 6)}...`);
+    }
     // Buttons: Métodos
     async clickButton(buttonType) {
         switch(buttonType) {
@@ -256,6 +267,7 @@ class Elements extends BasePage {
         // Evaluamos directamente en el navegador
         return await imageLocator.evaluate((img) => {
             // Una imagen está rota si no ha cargado o su ancho natural es 0
+            this.log('info', `Evaluating image: src="${img.src}", complete=${img.complete}, naturalWidth=${img.naturalWidth}`);
             return !img.complete || img.naturalWidth === 0;
         });
     }
